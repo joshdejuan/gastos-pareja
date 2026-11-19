@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta http-equiv="Content-Security-Policy"
+        content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://cdn.jsdelivr.net; style-src 'self'; img-src 'self' data:; manifest-src 'self'; base-uri 'none'; form-action 'none'">
+  <meta name="referrer" content="no-referrer">
+  <meta name="theme-color" content="#fafaf9" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#141413" media="(prefers-color-scheme: dark)">
+  <title>Gastos</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main id="app"><p class="muted center pad">Cargando…</p></main>
+
+  <!-- ===== Login ===== -->
+  <template id="tpl-auth">
+    <section class="narrow">
+      <h1 class="brand">Gastos</h1>
+      <p class="muted">Las cuentas de casa, a medias.</p>
+      <form id="auth-form">
+        <label>Email<input type="email" name="email" required autocomplete="email"></label>
+        <label>Contraseña<input type="password" name="password" required minlength="10" autocomplete="current-password"></label>
+        <button class="btn primary">Entrar</button>
+        <button type="button" id="btn-signup" class="btn">Crear cuenta</button>
+      </form>
+      <p class="hint">Contraseña de al menos 10 caracteres.</p>
+    </section>
+  </template>
+
+  <!-- ===== Crear / unirse ===== -->
+  <template id="tpl-onboard">
+    <section class="narrow">
+      <h1 class="brand">Bienvenida/o</h1>
+      <form id="create-form">
+        <h2>Crear un hogar</h2>
+        <label>Nombre del hogar<input name="hname" required maxlength="60" placeholder="Casa"></label>
+        <label>Tu nombre<input name="dname" required maxlength="40"></label>
+        <button class="btn primary">Crear</button>
+      </form>
+      <div class="or">o</div>
+      <form id="join-form">
+        <h2>Unirme al de mi pareja</h2>
+        <label>Código de invitación<input name="code" required maxlength="10" autocapitalize="characters" class="mono"></label>
+        <label>Tu nombre<input name="dname" required maxlength="40"></label>
+        <button class="btn primary">Unirme</button>
+      </form>
+      <button id="btn-logout" class="link">Cerrar sesión</button>
+    </section>
+  </template>
+
+  <!-- ===== Principal ===== -->
+  <template id="tpl-main">
+    <header class="top">
+      <span id="h-name" class="eyebrow"></span>
+      <button id="btn-settings" class="link">Ajustes</button>
+    </header>
+
+    <nav class="month">
+      <button id="m-prev" class="icon" aria-label="Mes anterior">‹</button>
+      <h1 id="m-label"></h1>
+      <button id="m-next" class="icon" aria-label="Mes siguiente">›</button>
+    </nav>
+
+    <p id="invite-banner" class="note" hidden>
+      Pasa este código a tu pareja para que se una: <strong id="invite-code" class="mono"></strong>
+    </p>
+
+    <section class="kpis">
+      <div><span class="label">Ingresos</span><span id="k-in" class="num"></span></div>
+      <div><span class="label">Gastos</span><span id="k-out" class="num"></span></div>
+      <div><span class="label">Ahorro</span><span id="k-net" class="num"></span></div>
+    </section>
+
+    <section>
+      <h2>Gastos por categoría</h2>
+      <div id="chart" class="chart"></div>
+    </section>
+
+    <section>
+      <h2>Movimientos</h2>
+      <ul id="m-list" class="list"></ul>
+    </section>
+
+    <button id="fab" class="fab" aria-label="Añadir movimiento">+</button>
+  </template>
+
+  <!-- ===== Ajustes ===== -->
+  <template id="tpl-settings">
+    <header class="top">
+      <button id="btn-back" class="link">‹ Volver</button>
+      <span class="eyebrow">Ajustes</span>
+    </header>
+
+    <section>
+      <h2>Categorías</h2>
+      <div class="seg" role="tablist">
+        <button data-kind="expense" class="on">Gastos</button>
+        <button data-kind="income">Ingresos</button>
+      </div>
+      <ul id="cat-list" class="cats"></ul>
+      <form id="cat-add" class="inline">
+        <input name="name" required maxlength="30" placeholder="Nueva categoría">
+        <button class="btn">Añadir</button>
+      </form>
+    </section>
+
+    <section>
+      <h2>Movimientos periódicos</h2>
+      <ul id="rec-list" class="list"></ul>
+      <p class="hint">Se añaden solos en su fecha. Para crear uno, pulsa + y elige «Repetir».</p>
+    </section>
+
+    <section>
+      <h2>Perfil</h2>
+      <form id="name-form" class="inline">
+        <input name="dname" required maxlength="40" aria-label="Tu nombre">
+        <button class="btn">Guardar</button>
+      </form>
+      <p class="hint" id="s-code-wrap">Código de invitación: <strong id="s-code" class="mono"></strong></p>
+    </section>
+
+    <section class="actions">
+      <button id="btn-csv" class="btn">Exportar mes a CSV</button>
+      <button id="btn-logout" class="btn danger">Cerrar sesión</button>
+    </section>
+  </template>
+
+  <!-- ===== Formulario de movimiento ===== -->
+  <dialog id="tx-dialog">
+    <form id="tx-form" method="dialog">
+      <div class="seg" id="tx-kind">
+        <button type="button" data-kind="expense" class="on">Gasto</button>
+        <button type="button" data-kind="income">Ingreso</button>
+      </div>
+      <label class="amount-wrap"><span class="sr">Importe</span>
+        <input name="amount" required inputmode="decimal" placeholder="0,00" autocomplete="off"
+               pattern="^\d{1,7}([.,]\d{1,2})?$" class="amount"><span class="cur">€</span>
+      </label>
+      <label>Concepto<input name="desc" required maxlength="120"></label>
+      <div class="row">
+        <label>Categoría<select name="cat" required></select></label>
+        <label>Fecha<input name="date" type="date" required></label>
+      </div>
+      <label id="repeat-wrap">Repetir
+        <select name="repeat">
+          <option value="">No se repite</option>
+          <option value="weekly">Cada semana</option>
+          <option value="monthly">Cada mes</option>
+          <option value="yearly">Cada año</option>
+        </select>
+      </label>
+      <p id="tx-meta" class="hint"></p>
+      <div class="dialog-actions">
+        <button type="button" id="tx-delete" class="link danger" hidden>Eliminar</button>
+        <span class="spacer"></span>
+        <button type="button" id="tx-cancel" class="btn">Cancelar</button>
+        <button type="submit" class="btn primary">Guardar</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div id="toast" role="status" aria-live="polite" hidden></div>
+  <script type="module" src="app.js"></script>
+</body>
+</html>
