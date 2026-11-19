@@ -29,7 +29,7 @@ App web minimalista para llevar los gastos e ingresos en común de una pareja. S
 
 ## Mantenimiento
 
-- **Pausa por inactividad:** Supabase pausa los proyectos gratuitos que pasan 7 días sin actividad. La tarea `.github/workflows/keepalive.yml` lo evita y además genera los periódicos. Necesita los secretos `SUPABASE_URL` y `SUPABASE_ANON_KEY` en *Settings → Secrets and variables → Actions*, con los valores de `config.js`.
+- **Pausa por inactividad:** Supabase pausa los proyectos gratuitos que pasan 7 días sin actividad. La tarea `.github/workflows/keepalive.yml` lo evita y además genera los periódicos.
 - **Generación interna:** Supabase también genera los periódicos 4 veces al día con `pg_cron`.
 - **Copias de seguridad:** el plan gratuito no las incluye. Exportad el CSV de vez en cuando.
 
