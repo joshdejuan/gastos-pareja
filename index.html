@@ -21,9 +21,11 @@
   <template id="tpl-auth">
     <section class="narrow">
       <h1 class="brand">Gastos</h1>
-      <p class="muted">Las cuentas de casa, a medias.</p>
+      <p class="muted">Las cuentas de casa, en común.</p>
+      <button type="button" id="btn-passkey" class="btn primary passkey" hidden>Entrar con Face ID o huella</button>
+      <div id="passkey-or" class="or" hidden>o con email</div>
       <form id="auth-form">
-        <label>Email<input type="email" name="email" required autocomplete="email"></label>
+        <label>Email<input type="email" name="email" required autocomplete="email webauthn"></label>
         <label>Contraseña<input type="password" name="password" required minlength="10" autocomplete="current-password"></label>
         <button class="btn primary">Entrar</button>
         <button type="button" id="btn-signup" class="btn">Crear cuenta</button>
@@ -56,7 +58,7 @@
   <!-- ===== Principal ===== -->
   <template id="tpl-main">
     <header class="top">
-      <span id="h-name" class="eyebrow"></span>
+      <span class="eyebrow"><span id="h-name"></span> <span id="live" class="live" hidden title="Los cambios de tu pareja aparecen al instante">en directo</span></span>
       <button id="btn-settings" class="link">Ajustes</button>
     </header>
 
@@ -69,11 +71,21 @@
     <p id="invite-banner" class="note" hidden>
       Pasa este código a tu pareja para que se una: <strong id="invite-code" class="mono"></strong>
     </p>
+    <p id="passkey-banner" class="note" hidden>
+      ¿Quieres entrar con Face ID o huella en este dispositivo?
+      <span class="note-actions"><button id="pk-yes" class="btn primary small">Activar</button><button id="pk-no" class="link">Ahora no</button></span>
+    </p>
 
     <section class="kpis">
       <div><span class="label">Ingresos</span><span id="k-in" class="num"></span></div>
       <div><span class="label">Gastos</span><span id="k-out" class="num"></span></div>
       <div><span class="label">Ahorro</span><span id="k-net" class="num"></span></div>
+    </section>
+
+    <section id="budget-sec" hidden>
+      <h2>Presupuestos</h2>
+      <div id="budgets" class="budgets"></div>
+      <p id="budget-total" class="hint"></p>
     </section>
 
     <section>
@@ -82,7 +94,18 @@
     </section>
 
     <section>
-      <h2>Movimientos</h2>
+      <h2>Evolución · 12 meses</h2>
+      <div class="legend"><span><i class="sw in"></i>Ingresos</span><span><i class="sw out"></i>Gastos</span></div>
+      <div id="trend" class="trend"></div>
+      <ul id="insights" class="insights"></ul>
+    </section>
+
+    <section>
+      <h2 id="list-title">Movimientos</h2>
+      <div class="filters">
+        <input id="q" type="search" placeholder="Buscar…" title="Busca en todos los meses" autocomplete="off" aria-label="Buscar movimientos">
+        <select id="fcat" aria-label="Filtrar por categoría"><option value="">Todas</option></select>
+      </div>
       <ul id="m-list" class="list"></ul>
     </section>
 
@@ -97,7 +120,7 @@
     </header>
 
     <section>
-      <h2>Categorías</h2>
+      <h2>Categorías y presupuestos</h2>
       <div class="seg" role="tablist">
         <button data-kind="expense" class="on">Gastos</button>
         <button data-kind="income">Ingresos</button>
@@ -107,12 +130,20 @@
         <input name="name" required maxlength="30" placeholder="Nueva categoría">
         <button class="btn">Añadir</button>
       </form>
+      <p class="hint" id="budget-hint">Pon un presupuesto mensual a las categorías que quieras controlar. Déjalo vacío para no usar presupuesto.</p>
     </section>
 
     <section>
       <h2>Movimientos periódicos</h2>
       <ul id="rec-list" class="list"></ul>
       <p class="hint">Se añaden solos en su fecha. Para crear uno, pulsa + y elige «Repetir».</p>
+    </section>
+
+    <section>
+      <h2>Face ID y huella</h2>
+      <ul id="pk-list" class="list"></ul>
+      <button id="pk-add" class="btn">Activar en este dispositivo</button>
+      <p class="hint" id="pk-hint">Cada uno lo activa en su propio móvil u ordenador. La contraseña sigue funcionando.</p>
     </section>
 
     <section>
@@ -144,16 +175,37 @@
       <label>Concepto<input name="desc" required maxlength="120"></label>
       <div class="row">
         <label>Categoría<select name="cat" required></select></label>
-        <label>Fecha<input name="date" type="date" required></label>
+        <label><span id="date-label">Fecha</span><input name="date" type="date" required></label>
       </div>
-      <label id="repeat-wrap">Repetir
-        <select name="repeat">
-          <option value="">No se repite</option>
-          <option value="weekly">Cada semana</option>
-          <option value="monthly">Cada mes</option>
-          <option value="yearly">Cada año</option>
-        </select>
-      </label>
+
+      <div id="repeat-block">
+        <label>Repetir
+          <select name="repeat">
+            <option value="">No se repite</option>
+            <option value="weekly:1">Cada semana</option>
+            <option value="weekly:2">Cada 2 semanas</option>
+            <option value="monthly:1">Cada mes</option>
+            <option value="monthly:2">Cada 2 meses</option>
+            <option value="monthly:3">Cada 3 meses (trimestral)</option>
+            <option value="monthly:6">Cada 6 meses</option>
+            <option value="yearly:1">Cada año</option>
+            <option value="custom">Personalizada…</option>
+          </select>
+        </label>
+        <div id="repeat-custom" class="row" hidden>
+          <label>Cada<input name="every" type="number" min="1" max="12" value="1" inputmode="numeric"></label>
+          <label>&nbsp;<select name="unit"><option value="weekly">semanas</option><option value="monthly" selected>meses</option><option value="yearly">años</option></select></label>
+        </div>
+        <div id="repeat-end" class="row" hidden>
+          <label>Termina
+            <select name="endmode"><option value="">Nunca</option><option value="date">En una fecha</option><option value="count">Tras varias veces</option></select>
+          </label>
+          <label id="end-date-wrap" hidden>Último día<input name="enddate" type="date"></label>
+          <label id="end-count-wrap" hidden>Nº de veces<input name="endcount" type="number" min="1" max="500" value="12" inputmode="numeric"></label>
+        </div>
+        <p id="repeat-preview" class="preview" hidden></p>
+      </div>
+
       <p id="tx-meta" class="hint"></p>
       <div class="dialog-actions">
         <button type="button" id="tx-delete" class="link danger" hidden>Eliminar</button>
@@ -164,6 +216,7 @@
     </form>
   </dialog>
 
+  <div id="tip" class="tip" role="tooltip" hidden></div>
   <div id="toast" role="status" aria-live="polite" hidden></div>
   <script type="module" src="app.js"></script>
 </body>
