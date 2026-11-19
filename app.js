@@ -193,7 +193,7 @@ function renderList() {
         el("div", { className: "t", textContent: t.description }),
         el("div", { className: "s" }, c ? el("span", { className: "dot", style: { background: col(c.color) } }) : null,
           el("span", { textContent: meta + (t.recurring_id ? " · ↻" : "") }))),
-      el("span", { className: "a", textContent: (t.kind === "income" ? "+" : "−") + fmt(t.amount_cents) })));
+      el("span", { className: t.kind === "income" ? "a in" : "a", textContent: (t.kind === "income" ? "+" : "−") + fmt(t.amount_cents) })));
   }
   list.replaceChildren(...out);
 }
